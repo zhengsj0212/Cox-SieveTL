@@ -35,7 +35,7 @@ x_max <- 4
 get_sievetl_plugin_transfer_results <- function(covariate_name,
                                                 display_name = "Cox-SieveTL") {
   if(display_name == 'Cox-SieveTL') {
-    infer_file <- './results_allTMB_new_hessian_lasso_new/realdata_transfer_hessian_inference/all_targets_beta_wald_ci_hessian.csv'
+    infer_file <- './results_allTMB_new_hessian_lasso_new/realdata_transfer_hessian_inference/all_targets_beta_wald_ci.csv'
   } else {
     infer_file <- file.path(results_dir, "inference_beta_summary_selected_methods.csv")
   }
@@ -647,10 +647,14 @@ make_forest_panel <- function(df, panel_title, x_min = 0, x_max = 4) {
 cox_df <- get_coxph_target_results(covariate_name) %>%
   mutate(method_display = "CoxPH Target")
 
-# Use Hessian-based Cox-SieveTL as the main Cox-SieveTL result
-sieve_df <- get_sievetl_hessian_results(
+sieve_df <- get_sievetl_plugin_transfer_results(
   covariate_name = covariate_name,
   display_name = "Cox-SieveTL"
+)
+
+sieve_hessian_df <- get_sievetl_hessian_results(
+  covariate_name = covariate_name,
+  display_name = "Cox-SieveTL Hessian"
 )
 
 transcox_df <- get_bootstrap_method_results(
@@ -667,35 +671,18 @@ discretekl_df <- get_bootstrap_method_results(
 ) %>%
   rename(cancer = target_cancer)
 
+sieve_df$pvalue <- sieve_df$p_value
+sieve_df$CI_low <- exp(sieve_df$ci_lower)
+sieve_df$CI_high <- exp(sieve_df$ci_upper)
+
 all_methods_df <- bind_rows(
-  cox_df %>%
-    dplyr::select(
-      cancer, cancer_label, Samples,
-      beta, se, z, pvalue, HR, CI_low, CI_high,
-      method_display
-    ),
-  
-  sieve_df %>%
-    dplyr::select(
-      cancer, cancer_label, Samples,
-      beta, se, z, pvalue, HR, CI_low, CI_high,
-      method_display
-    ),
-  
-  transcox_df %>%
-    dplyr::select(
-      cancer, cancer_label, Samples,
-      beta, se, z, pvalue, HR, CI_low, CI_high,
-      method_display
-    ),
-  
-  discretekl_df %>%
-    dplyr::select(
-      cancer, cancer_label, Samples,
-      beta, se, z, pvalue, HR, CI_low, CI_high,
-      method_display
-    )
+  cox_df %>% dplyr::select(cancer, cancer_label, Samples, beta, se, z, pvalue, HR, CI_low, CI_high, method_display),
+  sieve_df %>% dplyr::select(cancer, cancer_label, Samples, beta, se, z, pvalue, HR, CI_low, CI_high, method_display),
+  sieve_hessian_df %>% dplyr::select(cancer, cancer_label, Samples, beta, se, z, pvalue, HR, CI_low, CI_high, method_display),
+  transcox_df %>% dplyr::select(cancer, cancer_label, Samples, beta, se, z, pvalue, HR, CI_low, CI_high, method_display),
+  discretekl_df %>% dplyr::select(cancer, cancer_label, Samples, beta, se, z, pvalue, HR, CI_low, CI_high, method_display)
 )
+
 size_df <- get_size_map()
 
 all_methods_df <- all_methods_df %>%
@@ -724,6 +711,7 @@ make_forest_panel_all_methods <- function(
   method_levels <- c(
     "CoxPH Target",
     "Cox-SieveTL",
+    "Cox-SieveTL Hessian",
     "TransCox",
     "DiscreteKL"
   )
@@ -747,7 +735,7 @@ make_forest_panel_all_methods <- function(
     group_by(cancer) %>%
     mutate(
       method_index = match(method_display, method_levels),
-      y_plot = y + c(-1.5, -0.5, 0.5, 1.5)[method_index] * offset_scale * row_spacing
+      y_plot = y + c(-2, -1, 0, 1, 2)[method_index] * offset_scale * row_spacing
     ) %>%
     ungroup() %>%
     mutate(
@@ -782,6 +770,7 @@ make_forest_panel_all_methods <- function(
   color_map <- c(
     "CoxPH Target" = "#000000",
     "Cox-SieveTL" = "#D55E00",
+    "Cox-SieveTL Hessian" = "#CC79A7",
     "TransCox" = "#0072B2",
     "DiscreteKL" = "#009E73"
   )
@@ -936,14 +925,14 @@ forest_all_methods_hessian_plot <- make_forest_panel_all_methods(
 forest_all_methods_hessian_plot
 
 ggsave(
-  file.path(results_dir, paste0("forest_all_methods_", covariate_name, ".pdf")),
+  file.path(results_dir, paste0("forest_all_methods_with_hessian_", covariate_name, ".pdf")),
   forest_all_methods_hessian_plot,
   width = 15,
   height = 15
 )
 
 # ggsave(
-#   file.path(results_dir, paste0("forest_all_methods_", covariate_name, ".pdf")),
+#   file.path(results_dir, paste0("forest_all_methods_", covariate_name, "_new.pdf")),
 #   forest_all_methods_plot,
 #   width = 15,
 #   height = 15

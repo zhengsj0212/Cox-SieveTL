@@ -4,7 +4,7 @@ library(dplyr)
 library(tidyr)
 library(readr)
 
-results_dir <- "./results_allTMB_new_hessian_lasso"
+results_dir <- "./results_allTMB_new_hessian_lasso_new"
 beta_file <- file.path(results_dir, "fullsample_beta_estimates.csv")
 
 beta_df <- read.csv(beta_file, stringsAsFactors = FALSE)

@@ -14,7 +14,7 @@ setwd('/Users/yuxisong/Library/CloudStorage/Box-Box/Cox-SieveTL/simulation/resul
 
 source("./codes/cv_source_selection.R")
 
-results_dir   <- "./results_allTMB_new_hessian_lasso"
+results_dir   <- "./results_allTMB_new_hessian_lasso_new"
 grid_file     <- file.path(results_dir, "c_lambda_tuning_grid_results_bic.csv")
 data_file     <- "./codes/extracted_cancer_data_by_type.xlsx"
 selected_file <- file.path(results_dir, "selected_sources_summary.csv")
@@ -26,7 +26,8 @@ stopifnot(file.exists(selected_file))
 # ------------------------------------------------------------
 # read grid results
 # ------------------------------------------------------------
-cv_tbl <- read.csv("./results_allTMB_new_hessian_lasso/cv_metrics_summary_table_with_c_lambda_bic.csv", stringsAsFactors = FALSE)
+all_sheets <- paste0("cancer", c(1:10, 12:16))
+cv_tbl <- read.csv("./results_allTMB_new_hessian_lasso_new/cv_metrics_summary_table_with_c_lambda_bic.csv", stringsAsFactors = FALSE)
 c_map <- cv_tbl$c_mult
 names(c_map) <- as.character(all_sheets)
 grid_df <- read.csv(grid_file, stringsAsFactors = FALSE)

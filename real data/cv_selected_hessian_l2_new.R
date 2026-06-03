@@ -15,7 +15,7 @@ setwd('/Users/yuxisong/Library/CloudStorage/Box-Box/Cox-SieveTL/simulation/resul
 source("./codes/cv_source_selection.R")
 source("/Users/yuxisong/Library/CloudStorage/Box-Box/Cox-SieveTL/simulation/results/new_icb_response_result/codes/cv_eval_selected_source_bic.R")
 
-results_dir <- "./results_allTMB_new_hessian_lasso"
+results_dir <- "./results_allTMB_new_hessian_lasso_new"
 selected_file <- file.path(results_dir, "selected_sources_summary.csv")
 data_file     <- "./codes/extracted_cancer_data_by_type.xlsx"
 
@@ -25,7 +25,7 @@ dir.create(pilot_out_dir, recursive = TRUE, showWarnings = FALSE)
 # =========================================================
 # User controls
 # =========================================================
-c_grid <- c(4, 8, 16, 32, 64, 128, 256)
+c_grid <- c(0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256)
 # c_grid <- c(0, 0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048)
 eps_smooth <- 1e-4
 
@@ -35,7 +35,7 @@ lambda_eta_default  <- 0
 
 # all sheets / target sheets
 all_sheets <- paste0("cancer", c(1:10, 12:16))
-cv_tbl <- read.csv("./results_allTMB_new_hessian_lasso/cv_metrics_summary_table_with_c_lambda_bic.csv",
+cv_tbl <- read.csv("./results_allTMB_new_hessian_lasso_new/cv_metrics_summary_table_with_c_lambda_bic.csv",
                    stringsAsFactors = FALSE)
 # same c-multiplier map as your old script
 # c_map <- c(

@@ -9,14 +9,14 @@ suppressPackageStartupMessages({
   library(stringr)
 })
 
-results_dir <- "./results_allTMB_new_hessian_lasso"
+results_dir <- "./results_allTMB_new_hessian_lasso_new"
 
 # =========================================================
 # file paths
 # =========================================================
 infer_file      <- file.path(results_dir, "inference_beta_summary_selected_methods.csv")
 all_beta_file   <- file.path(results_dir, "all_methods_beta_estimates.csv")
-sievetl_file    <- '/Users/yuxisong/Library/CloudStorage/Box-Box/Cox-SieveTL/simulation/results/new_icb_response_result/results_allTMB_new_hessian_lasso/realdata_transfer_hessian_inference/all_targets_beta_wald_ci.csv'
+sievetl_file    <- '/Users/yuxisong/Library/CloudStorage/Box-Box/Cox-SieveTL/simulation/results/new_icb_response_result/results_allTMB_new_hessian_lasso_new/realdata_transfer_hessian_inference/all_targets_beta_wald_ci_hessian.csv'
 
 boot_file       <- file.path(results_dir, "bootstrap_beta_all_transcox_discretekl.csv")
 

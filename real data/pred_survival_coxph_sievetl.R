@@ -16,7 +16,7 @@ setwd('/Users/yuxisong/Library/CloudStorage/Box-Box/Cox-SieveTL/simulation/resul
 source("./codes/cv_source_selection.R")
 source("/Users/yuxisong/Library/CloudStorage/Box-Box/Cox-SieveTL/simulation/results/new_icb_response_result/codes/cv_eval_selected_source_bic.R")
 
-results_dir   <- "./results_allTMB_new_hessian_lasso"
+results_dir   <- "./results_allTMB_new_hessian_lasso_new"
 selected_file <- file.path(results_dir, "selected_sources_summary.csv")
 data_file     <- "./codes/extracted_cancer_data_by_type.xlsx"
 
@@ -68,7 +68,7 @@ pretty_name_map <- c(
 # =========================================================
 # Target list / lambda map
 # =========================================================
-cv_tbl <- read.csv("./results_allTMB_new_hessian_lasso/cv_metrics_summary_table_with_c_lambda_bic.csv", stringsAsFactors = FALSE)
+cv_tbl <- read.csv("./results_allTMB_new_hessian_lasso_new/cv_metrics_summary_table_with_c_lambda_bic.csv", stringsAsFactors = FALSE)
 c_map <- cv_tbl$c_mult
 all_sheets <- paste0("cancer", c(1:10, 12:16))
 names(c_map) <- as.character(all_sheets)
@@ -1137,7 +1137,7 @@ run_all_loris_survival <- function(target_vec = target_sheets,
 # =========================================================
 tname <- "cancer12"   # ovarian
 ref_file <- file.path(out_dir, "all_targets_loris_survival_reference_values.csv")
-results_dir   <- "./results_allTMB_new_hessian_lasso"
+results_dir   <- "./results_allTMB_new_hessian_lasso_new"
 # =========================================================
 # Read and preprocess ovarian data the same way
 # =========================================================

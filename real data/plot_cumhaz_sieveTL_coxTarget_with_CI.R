@@ -14,7 +14,7 @@ setwd('/Users/yuxisong/Library/CloudStorage/Box-Box/Cox-SieveTL/simulation/resul
 source("./codes/cv_source_selection.R")
 source("./codes/cv_eval_selected_source_bic.R")
 
-results_dir    <- "./results_allTMB_new_hessian_lasso"
+results_dir    <- "./results_allTMB_new_hessian_lasso_new"
 data_file      <- "./codes/extracted_cancer_data_by_type.xlsx"
 selected_file  <- file.path(results_dir, "selected_sources_summary.csv")
 cv_lambda_path <- file.path(results_dir, "cv_metrics_summary_table_with_c_lambda_bic.csv")
@@ -34,7 +34,7 @@ multiplier_boot <- 500
 conf_level <- 0.95
 z_alpha <- qnorm(1 - (1 - conf_level) / 2)
 
-cv_tbl <- read.csv("./results_allTMB_new_hessian_lasso/cv_metrics_summary_table_with_c_lambda_bic.csv", stringsAsFactors = FALSE)
+cv_tbl <- read.csv("./results_allTMB_new_hessian_lasso_new/cv_metrics_summary_table_with_c_lambda_bic.csv", stringsAsFactors = FALSE)
 cv_tbl2 <- cv_tbl %>%
   mutate(
     best_lambda_zeta = ifelse(is.na(best_lambda_zeta) | best_lambda_zeta == 0, lambda_zeta_default, best_lambda_zeta),
@@ -365,37 +365,75 @@ compute_plugin_inference <- function(target, source, beta_hat, gamma_hat, g_func
   
   scb_grid <- seq(grid_range[1], grid_range[2], length.out = integration_grid_size)
   
-  H_target <- compute_target_hessian_theta(target, gamma_hat, beta_hat, g_funcs, time_grid_target)
-  H_pooled <- compute_pooled_hessian_theta(target, source, gamma_hat, beta_hat, g_funcs, pooled_time_grid)
+  # -------------------------------------------------------
+  # Hessian matrices
+  # -------------------------------------------------------
+  H_target <- compute_target_hessian_theta(
+    data_k = target,
+    gamma_hat = gamma_hat,
+    beta_hat = beta_hat,
+    g_funcs = g_funcs,
+    time_grid = time_grid_target
+  )
+  
+  H_pooled <- compute_pooled_hessian_theta(
+    target = target,
+    source_list = source,
+    gamma_hat = gamma_hat,
+    beta_hat = beta_hat,
+    g_funcs = g_funcs,
+    time_grid = pooled_time_grid
+  )
   
   H_target <- regularize_hessian(H_target, ridge = 1e-6)
   H_pooled <- regularize_hessian(H_pooled, ridge = 1e-6)
   
-  Omega <- estimate_transfer_inverse_hessian_by_column(H_pooled, H_target, lambda_delta_vec)
+  # -------------------------------------------------------
+  # Transferred inverse Hessian
+  # -------------------------------------------------------
+  Omega <- estimate_transfer_inverse_hessian_by_column(
+    H_pooled = H_pooled,
+    H_target = H_target,
+    lambda_delta_vec = lambda_delta_vec
+  )
   
-  theta_hat <- c(gamma_hat, beta_hat)
-  score_vec <- compute_target_score_theta(target, gamma_hat, beta_hat, g_funcs, time_grid_target)
-  score_subj <- compute_target_score_theta_subjects(target, gamma_hat, beta_hat, g_funcs, time_grid_target)
+  # Symmetrize because Omega is estimated column-by-column
+  Omega <- (Omega + t(Omega)) / 2
   
-  IF_theta <- -score_subj %*% t(Omega)
-  theta_os <- as.vector(theta_hat - Omega %*% score_vec)
+  # -------------------------------------------------------
+  # IMPORTANT:
+  # Use final Cox-SieveTL estimator directly.
+  # Do NOT apply theta - Omega * score update here.
+  # -------------------------------------------------------
+  gamma_os <- as.numeric(gamma_hat)
+  beta_os  <- as.numeric(beta_hat)
   
-  gamma_os <- theta_os[seq_len(p)]
-  beta_os  <- theta_os[(p + 1):(p + L)]
+  # -------------------------------------------------------
+  # Direct Hessian-based variance:
+  # Var(theta_hat) approx Omega / n0
+  # -------------------------------------------------------
+  Sigma_gamma <- Omega[seq_len(p), seq_len(p), drop = FALSE]
+  Sigma_beta  <- Omega[(p + 1):(p + L), (p + 1):(p + L), drop = FALSE]
   
-  IF_gamma <- IF_theta[, seq_len(p), drop = FALSE]
-  IF_beta  <- IF_theta[, (p + 1):(p + L), drop = FALSE]
+  se_beta <- sqrt(pmax(diag(Sigma_beta) / n0, 0))
   
-  avar_beta <- crossprod(IF_beta) / n0
-  avar_beta <- (avar_beta + t(avar_beta)) / 2
-  se_beta <- sqrt(pmax(diag(avar_beta) / n0, 0))
-  
+  # -------------------------------------------------------
+  # Cumulative hazard delta-method variance
+  # Lambda0(t) = int_0^t exp{gamma^T G(u)} du
+  # d Lambda0(t) / d gamma = A(t)
+  # Var{Lambda0(t)} approx A(t)^T Sigma_gamma A(t) / n0
+  # -------------------------------------------------------
   a_quant <- compute_a_matrix(gamma_os, g_funcs, quant_times)
-  IF_Lambda_quant <- IF_gamma %*% t(a_quant$a_mat)
-  se_Lambda <- sqrt(pmax(colSums(IF_Lambda_quant^2) / n0^2, 0))
+  A_quant <- a_quant$a_mat
+  
+  var_Lambda <- diag(A_quant %*% Sigma_gamma %*% t(A_quant))
+  se_Lambda <- sqrt(pmax(var_Lambda / n0, 0))
   
   a_grid <- compute_a_matrix(gamma_os, g_funcs, scb_grid)
-  IF_Lambda_grid <- IF_gamma %*% t(a_grid$a_mat)
+  A_grid <- a_grid$a_mat
+  
+  cov_Lambda_grid <- A_grid %*% Sigma_gamma %*% t(A_grid) / n0
+  cov_Lambda_grid <- (cov_Lambda_grid + t(cov_Lambda_grid)) / 2
   
   list(
     n0 = n0,
@@ -405,34 +443,54 @@ compute_plugin_inference <- function(target, source, beta_hat, gamma_hat, g_func
     quant_times = quant_times,
     integration_grid = scb_grid,
     se_Lambda = se_Lambda,
-    IF_Lambda_hat_mat = IF_Lambda_quant,
-    IF_Lambda_hat_grid = IF_Lambda_grid
+    Omega_hat = Omega,
+    Sigma_gamma = Sigma_gamma,
+    Sigma_beta = Sigma_beta,
+    cov_Lambda_grid = cov_Lambda_grid
   )
 }
 
-compute_multiplier_cumh_intervals <- function(inference, alpha = 0.05,
+compute_multiplier_cumh_intervals <- function(inference,
+                                              alpha = 0.05,
                                               multiplier_boot = 500,
                                               seed = 2026,
-                                              sd_floor = 1e-6) {
+                                              sd_floor = 1e-8) {
   set.seed(seed)
-  n0 <- inference$n0
   
-  xi <- matrix(rnorm(multiplier_boot * n0), nrow = multiplier_boot, ncol = n0)
+  Sigma_grid <- inference$cov_Lambda_grid
+  Sigma_grid <- (Sigma_grid + t(Sigma_grid)) / 2
   
-  z_grid <- (xi %*% inference$IF_Lambda_hat_grid) / sqrt(n0)
-  s_grid <- sqrt(pmax(colMeans(z_grid^2), 0))
+  # Eigenvalue truncation to avoid numerical non-PSD issues
+  eig <- eigen(Sigma_grid, symmetric = TRUE)
+  vals <- pmax(eig$values, 0)
+  
+  sqrt_Sigma <- eig$vectors %*%
+    diag(sqrt(vals), nrow = length(vals)) %*%
+    t(eig$vectors)
+  
+  Z <- matrix(
+    rnorm(multiplier_boot * nrow(Sigma_grid)),
+    nrow = multiplier_boot,
+    ncol = nrow(Sigma_grid)
+  )
+  
+  gp_draws <- Z %*% sqrt_Sigma
+  
+  s_grid <- sqrt(pmax(diag(Sigma_grid), 0))
   s_grid_safe <- pmax(s_grid, sd_floor)
   
-  studentized <- abs(sweep(z_grid, 2, s_grid_safe, "/"))
+  studentized <- abs(sweep(gp_draws, 2, s_grid_safe, "/"))
   sup_stats <- apply(studentized, 1, max, na.rm = TRUE)
-  crit <- as.numeric(quantile(sup_stats, probs = 1 - alpha, na.rm = TRUE))
+  
+  crit <- as.numeric(
+    quantile(sup_stats, probs = 1 - alpha, na.rm = TRUE, names = FALSE)
+  )
   
   list(
     s_grid = s_grid,
     crit = crit
   )
 }
-
 compute_sievetl_cumh_real <- function(target_df, source_df, feature_cols, time_col, event_col,
                                       lambda_zeta, lambda_eta, c_mult,
                                       tname, pilot_dir) {
@@ -517,7 +575,7 @@ compute_sievetl_cumh_real <- function(target_df, source_df, feature_cols, time_c
     ci_hi = base_quant$H0 + z_alpha * inference$se_Lambda
   )
   
-  scb_halfwidth <- boot_out$crit * pmax(boot_out$s_grid, 1e-6) / sqrt(inference$n0)
+  scb_halfwidth <- boot_out$crit * pmax(boot_out$s_grid, 1e-8)
   
   scb_curve <- data.frame(
     time = base_grid$time,
