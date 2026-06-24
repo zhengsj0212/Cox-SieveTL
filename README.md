@@ -5,6 +5,3 @@ This repository contains the simulation code and real data code for the paper:
 Folders:
 - `simulation/`
 - `real data/`
-
-For simulation details, see:
-- `simulation/README_simulation.md`
